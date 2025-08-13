@@ -1,0 +1,18 @@
+# RunPod optimized requirements for Posture Measurement API
+# Includes RunPod SDK and all dependencies for serverless deployment
+
+# RunPod SDK
+runpod==1.6.0
+
+# Core API dependencies (from requirements_posture.txt)
+fastapi==0.104.1
+uvicorn==0.24.0
+python-multipart==0.0.6
+pydantic==2.5.0
+opencv-python-headless==4.8.1.78  # Headless version for serverless
+numpy==1.24.1
+nest-asyncio==1.5.8
+mediapipe==0.10.9
+
+# Additional utilities for image processing
+Pillow==10.1.0

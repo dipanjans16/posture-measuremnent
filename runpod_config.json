@@ -1,0 +1,74 @@
+{
+  "name": "posture-measurement-api",
+  "description": "AI-powered posture analysis service using MediaPipe pose detection from dual-image analysis",
+  "version": "1.0.0",
+  "image": "your-registry-url/posture-measurement-api:latest",
+  "env": {
+    "PYTHONUNBUFFERED": "1",
+    "PYTHONDONTWRITEBYTECODE": "1"
+  },
+  "resources": {
+    "cpu": 2,
+    "memory": "4Gi",
+    "storage": "10Gi"
+  },
+  "scaling": {
+    "min_workers": 0,
+    "max_workers": 10,
+    "idle_timeout": 30,
+    "scale_up_threshold": 5,
+    "scale_down_threshold": 1
+  },
+  "timeouts": {
+    "request_timeout": 120,
+    "startup_timeout": 300
+  },
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "front_image": {
+        "type": "string",
+        "description": "Base64 encoded front view image of the person (REQUIRED)"
+      },
+      "side_image": {
+        "type": "string", 
+        "description": "Base64 encoded side view image of the person (REQUIRED)"
+      }
+    },
+    "required": ["front_image", "side_image"]
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "status": {
+        "type": "string",
+        "enum": ["success", "error"]
+      },
+      "data": {
+        "type": "object",
+        "properties": {
+          "front_view": {
+            "type": "object",
+            "properties": {
+              "shoulder_tilt": {"type": "number"},
+              "pelvic_tilt": {"type": "number"},
+              "head_tilt": {"type": "number"},
+              "body_tilt": {"type": "number"}
+            }
+          },
+          "side_view": {
+            "type": "object", 
+            "properties": {
+              "back_tilt": {"type": "number"},
+              "neck_tilt": {"type": "number"},
+              "body_tilt": {"type": "number"},
+              "hip_tilt": {"type": "number"}
+            }
+          }
+        }
+      },
+      "message": {"type": "string"},
+      "error": {"type": "string"}
+    }
+  }
+}

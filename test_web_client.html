@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Posture Measurement API Test Client</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .upload-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 2px dashed #ccc;
+            border-radius: 5px;
+            text-align: center;
+        }
+        .upload-section.dragover {
+            border-color: #007bff;
+            background-color: #f0f8ff;
+        }
+        input[type="file"] {
+            margin: 10px;
+            padding: 10px;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        .preview {
+            max-width: 200px;
+            max-height: 200px;
+            margin: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .results {
+            margin-top: 20px;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
+        .loading {
+            text-align: center;
+            margin: 20px;
+        }
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .error {
+            color: #dc3545;
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .success {
+            color: #155724;
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .angle-results {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .view-angles {
+            background: #fff;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .view-angles h3 {
+            margin-top: 0;
+            color: #007bff;
+        }
+        .angle-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .angle-item:last-child {
+            border-bottom: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧍 Posture Measurement API Test Client</h1>
+        
+        <div>
+            <label for="endpoint">RunPod Endpoint URL:</label>
+            <input type="text" id="endpoint" placeholder="http://localhost:8000 or https://api.runpod.ai/v2/YOUR_ENDPOINT_ID/runsync" value="http://localhost:8000">
+        </div>
+
+        <div>
+            <label for="apiKey">API Key (for RunPod only):</label>
+            <input type="text" id="apiKey" placeholder="Bearer token for RunPod API (leave empty for local testing)">
+        </div>
+        
+        <div class="upload-section" id="frontUpload">
+            <h3>📷 Front View Image</h3>
+            <input type="file" id="frontImage" accept="image/*">
+            <div id="frontPreview"></div>
+        </div>
+        
+        <div class="upload-section" id="sideUpload">
+            <h3>📷 Side View Image</h3>
+            <input type="file" id="sideImage" accept="image/*">
+            <div id="sidePreview"></div>
+        </div>
+        
+        <div style="text-align: center;">
+            <button onclick="loadDemoImages()">📁 Load Demo Images</button>
+            <button onclick="testPosture()" id="testBtn">🔍 Analyze Posture</button>
+            <button onclick="clearResults()">🗑️ Clear Results</button>
+        </div>
+        
+        <div id="loading" class="loading" style="display: none;">
+            <div class="spinner"></div>
+            <p>Analyzing posture...</p>
+        </div>
+        
+        <div id="results"></div>
+    </div>
+
+    <script>
+        let frontImageData = null;
+        let sideImageData = null;
+
+        // File upload handlers
+        document.getElementById('frontImage').addEventListener('change', function(e) {
+            handleImageUpload(e.target.files[0], 'front');
+        });
+
+        document.getElementById('sideImage').addEventListener('change', function(e) {
+            handleImageUpload(e.target.files[0], 'side');
+        });
+
+        function handleImageUpload(file, type) {
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const base64 = e.target.result.split(',')[1]; // Remove data URL prefix
+                
+                if (type === 'front') {
+                    frontImageData = base64;
+                    showPreview(e.target.result, 'frontPreview');
+                } else {
+                    sideImageData = base64;
+                    showPreview(e.target.result, 'sidePreview');
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function showPreview(src, containerId) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = `<img src="${src}" class="preview" alt="Preview">`;
+        }
+
+        async function loadDemoImages() {
+            try {
+                // Load demo images (you'll need to have these in the same directory)
+                const frontResponse = await fetch('demo_images/front_image.jpg');
+                const sideResponse = await fetch('demo_images/side_image.jpg');
+                
+                if (frontResponse.ok && sideResponse.ok) {
+                    const frontBlob = await frontResponse.blob();
+                    const sideBlob = await sideResponse.blob();
+                    
+                    // Convert to base64
+                    const frontReader = new FileReader();
+                    const sideReader = new FileReader();
+                    
+                    frontReader.onload = (e) => {
+                        frontImageData = e.target.result.split(',')[1];
+                        showPreview(e.target.result, 'frontPreview');
+                    };
+                    
+                    sideReader.onload = (e) => {
+                        sideImageData = e.target.result.split(',')[1];
+                        showPreview(e.target.result, 'sidePreview');
+                    };
+                    
+                    frontReader.readAsDataURL(frontBlob);
+                    sideReader.readAsDataURL(sideBlob);
+                    
+                    showMessage('Demo images loaded successfully!', 'success');
+                } else {
+                    showMessage('Demo images not found. Please upload your own images.', 'error');
+                }
+            } catch (error) {
+                showMessage('Could not load demo images: ' + error.message, 'error');
+            }
+        }
+
+        async function testPosture() {
+            if (!frontImageData || !sideImageData) {
+                showMessage('Please upload both front and side view images', 'error');
+                return;
+            }
+
+            const endpoint = document.getElementById('endpoint').value;
+            const apiKey = document.getElementById('apiKey').value;
+            
+            if (!endpoint) {
+                showMessage('Please enter the endpoint URL', 'error');
+                return;
+            }
+
+            // Show loading
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('testBtn').disabled = true;
+            clearResults();
+
+            try {
+                const payload = {
+                    front: frontImageData,
+                    side: sideImageData
+                };
+
+                // If it's a RunPod endpoint, wrap in input object
+                const isRunPodEndpoint = endpoint.includes('runpod.ai');
+                const requestBody = isRunPodEndpoint ? { input: payload } : payload;
+
+                const headers = {
+                    'Content-Type': 'application/json'
+                };
+
+                if (apiKey && isRunPodEndpoint) {
+                    headers['Authorization'] = `Bearer ${apiKey}`;
+                }
+
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify(requestBody)
+                });
+
+                const result = await response.json();
+                
+                if (response.ok) {
+                    displayResults(result);
+                } else {
+                    showMessage(`Request failed: ${response.status} ${response.statusText}`, 'error');
+                    document.getElementById('results').innerHTML = `<div class="results">${JSON.stringify(result, null, 2)}</div>`;
+                }
+
+            } catch (error) {
+                showMessage('Error: ' + error.message, 'error');
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('testBtn').disabled = false;
+            }
+        }
+
+        function displayResults(result) {
+            const resultsDiv = document.getElementById('results');
+            
+            if (result.status === 'success') {
+                showMessage('Posture analysis completed successfully!', 'success');
+                
+                const data = result.data || result.output?.data || result;
+                
+                if (data.front_view && data.side_view) {
+                    resultsDiv.innerHTML = `
+                        <div class="angle-results">
+                            <div class="view-angles">
+                                <h3>👤 Front View Angles</h3>
+                                <div class="angle-item">
+                                    <span>Shoulder Tilt:</span>
+                                    <strong>${data.front_view.shoulder_tilt.toFixed(2)}°</strong>
+                                </div>
+                                <div class="angle-item">
+                                    <span>Pelvic Tilt:</span>
+                                    <strong>${data.front_view.pelvic_tilt.toFixed(2)}°</strong>
+                                </div>
+                                <div class="angle-item">
+                                    <span>Head Tilt:</span>
+                                    <strong>${data.front_view.head_tilt.toFixed(2)}°</strong>
+                                </div>
+                                <div class="angle-item">
+                                    <span>Body Tilt:</span>
+                                    <strong>${data.front_view.body_tilt.toFixed(2)}°</strong>
+                                </div>
+                            </div>
+                            
+                            <div class="view-angles">
+                                <h3>📐 Side View Angles</h3>
+                                <div class="angle-item">
+                                    <span>Back Tilt:</span>
+                                    <strong>${data.side_view.back_tilt.toFixed(2)}°</strong>
+                                </div>
+                                <div class="angle-item">
+                                    <span>Neck Tilt:</span>
+                                    <strong>${data.side_view.neck_tilt.toFixed(2)}°</strong>
+                                </div>
+                                <div class="angle-item">
+                                    <span>Body Tilt:</span>
+                                    <strong>${data.side_view.body_tilt.toFixed(2)}°</strong>
+                                </div>
+                                <div class="angle-item">
+                                    <span>Hip Tilt:</span>
+                                    <strong>${data.side_view.hip_tilt.toFixed(2)}°</strong>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="results">
+                            <strong>Raw Response:</strong>
+                            ${JSON.stringify(result, null, 2)}
+                        </div>
+                    `;
+                } else {
+                    resultsDiv.innerHTML = `<div class="results">${JSON.stringify(result, null, 2)}</div>`;
+                }
+            } else {
+                showMessage(`Analysis failed: ${result.error || result.message || 'Unknown error'}`, 'error');
+                resultsDiv.innerHTML = `<div class="results">${JSON.stringify(result, null, 2)}</div>`;
+            }
+        }
+
+        function showMessage(message, type) {
+            const resultsDiv = document.getElementById('results');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = type;
+            messageDiv.textContent = message;
+            resultsDiv.insertBefore(messageDiv, resultsDiv.firstChild);
+        }
+
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+        }
+
+        // Drag and drop functionality
+        ['frontUpload', 'sideUpload'].forEach(id => {
+            const element = document.getElementById(id);
+            
+            element.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                element.classList.add('dragover');
+            });
+            
+            element.addEventListener('dragleave', () => {
+                element.classList.remove('dragover');
+            });
+            
+            element.addEventListener('drop', (e) => {
+                e.preventDefault();
+                element.classList.remove('dragover');
+                
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    const type = id === 'frontUpload' ? 'front' : 'side';
+                    handleImageUpload(files[0], type);
+                }
+            });
+        });
+    </script>
+</body>
+</html>
