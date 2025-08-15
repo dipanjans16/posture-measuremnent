@@ -13,7 +13,7 @@ Please use PowerShell for installation and execution.
 
 #### Create venv
 ```powershell
-py -3.10 -m venv venv
+python -3.10 -m venv venv
 ```
 
 If you haven't installed Python 3.10, please install it first.
@@ -21,7 +21,7 @@ You can check the installed Python versions by running `py --list`.
 
 #### Activate venv
 ```powershell
-.\venv\Scripts\activate
+source venv/bin/activate
 ```
 
 When successful, `(venv)` will be displayed at the beginning of the input line. This indicates that the virtual environment is now active.
