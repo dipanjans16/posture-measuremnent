@@ -13,7 +13,7 @@ Please use PowerShell for installation and execution.
 
 #### Create venv
 ```powershell
-python -3.10 -m venv venv
+python3.10 -m venv venv
 ```
 
 If you haven't installed Python 3.10, please install it first.
